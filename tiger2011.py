@@ -18,7 +18,10 @@ class lookups:
     directions = {'N':'North', 'E':'East', 'S':'South', 'W':'West', 'NE':'Northeast', 'NW':'Northwest', 'SE':'Southeast', 'SW':'Southwest'}
     streetTypes = {'Ave':'Avenue', 'Cam':'Camino', 'Way':'Way', 'Walk':'Walk', 'Ter':'Terrace', 
                    'St':'Street', 'Rd':'Road', 'Pl':'Place', 'Ln':'Lane', 'Fwy':'Freeway', 
-                   'Dr':'Drive', 'Ct':'Court', 'Cir':'Circle', 'Blvd':'Boulevard', 'Aly':'Alley'}
+                   'Dr':'Drive', 'Ct':'Court', 'Cir':'Circle', 'Blvd':'Boulevard', 'Aly':'Alley',
+                   'Pt':'Point', 'Vis':'Vista', 'Trl':'Trail', 'Vw':'View', 'Crst':'Crest', 'Pass':'Pass',
+                   'Hwy':'Highway', 'Plz':'Plaza', 'Loop':'Loop', 'Cres':'Crescent', 'Corte':'Corte', 'Via':'Via',
+                   'Rue':'Rue', 'Pso':'Paseo', 'State Rte':'State Route' }
 
 def filterTags(attrs):
     if not attrs: return
@@ -61,7 +64,6 @@ def filterTags(attrs):
     return tags
 
 def composeName(attrs):
-    print 'composing name'
     finalName = ''
     if(attrs['PREDIRABRV']):
         finalName += safeLookup(attrs['PREDIRABRV'], lookups.directions) + ' '
@@ -71,7 +73,6 @@ def composeName(attrs):
         finalName += attrs['NAME'] + ' '
     if(attrs['SUFTYPABRV']):
         finalName += lookups.streetTypes[attrs['SUFTYPABRV']] + ' '
-    print 'returning name'
     return finalName.rstrip()
 
 def safeLookup(key, lookup):
