@@ -2,26 +2,35 @@
 ogr2osm translation file for converting TIGER 2011 shapefiles into .osm format.
 
 NOTE! To use this translation, you need to download the "featnames" file that ccompanies each TIGER shapefile. Then you need to join 
-that file to the shapefile in QGIS or ArcMap or something based on LINEARID. This will allow for the street name abbreviations to 
-be processed correctly. 
+that file to the shapefile in QGIS or ArcMap or whatever, based on LINEARID. This will allow for the street name abbreviations to 
+be processed correctly.
+
+NOTE 2! To expand abbreviations, this uses the CSV file tiger2011_abrev.csv which is also in this repo. However due to the limited 
+amount of information that gets passed in to the translation, I can't really know where to look for this file. So you must copy the 
+csv file to your current working directory before executing ogr2osm
 
 This translation file requires the new version of ogr2osm (see readme)
 '''
+import os
+import csv
 
-'''import dbf
-
-class dbfReader:
-    index = None
-'''
+streetTypes = {}
+directions = {}
     
-class lookups:
-    directions = {'N':'North', 'E':'East', 'S':'South', 'W':'West', 'NE':'Northeast', 'NW':'Northwest', 'SE':'Southeast', 'SW':'Southwest'}
-    streetTypes = {'Ave':'Avenue', 'Cam':'Camino', 'Way':'Way', 'Walk':'Walk', 'Ter':'Terrace', 
-                   'St':'Street', 'Rd':'Road', 'Pl':'Place', 'Ln':'Lane', 'Fwy':'Freeway', 
-                   'Dr':'Drive', 'Ct':'Court', 'Cir':'Circle', 'Blvd':'Boulevard', 'Aly':'Alley',
-                   'Pt':'Point', 'Vis':'Vista', 'Trl':'Trail', 'Vw':'View', 'Crst':'Crest', 'Pass':'Pass',
-                   'Hwy':'Highway', 'Plz':'Plaza', 'Loop':'Loop', 'Cres':'Crescent', 'Corte':'Corte', 'Via':'Via',
-                   'Rue':'Rue', 'Pso':'Paseo', 'State Rte':'State Route' }
+try:
+    directions.update({'N':'North', 'E':'East', 'S':'South', 'W':'West', 'NE':'Northeast', 'NW':'Northwest', 'SE':'Southeast', 'SW':'Southwest'})
+    f = open('tiger2011_abbrev.csv', 'rb')
+    print "opened file"
+    abbrevReader = csv.reader(f, delimiter=',')
+    print "about to iterate CSV file"
+    for row in abbrevReader:
+        streetTypes[row[2]] = row[1]
+        
+    print "Read tiger abbreviations: " + str(len(streetTypes))
+except:
+    print "\n\nError reading TIGER abbreviations. This will lead to bad data! Exiting." 
+    print "Please read the comments at the top of this translation regarding the abbreviations file\n\n"
+    os._exit()
 
 def filterTags(attrs):
     if not attrs: return
@@ -58,6 +67,8 @@ def filterTags(attrs):
         tags.update({'service':'alley'})
     elif attrs['MTFCC'] == 'S1740':
         tags.update({'access':'private'})
+    elif attrs['MTFCC'] == 'S1750' and attrs['FULLNAME'] == 'Driveway':
+        del tags['name']
     elif attrs['MTFCC'] == 'S1780':
         tags.update({'service':'parking_aisle'})
     
@@ -66,13 +77,13 @@ def filterTags(attrs):
 def composeName(attrs):
     finalName = ''
     if(attrs['PREDIRABRV']):
-        finalName += safeLookup(attrs['PREDIRABRV'], lookups.directions) + ' '
+        finalName += safeLookup(attrs['PREDIRABRV'], directions) + ' '
     if(attrs['PRETYPABRV']):
-        finalName += safeLookup(attrs['PRETYPABRV'], lookups.streetTypes) + ' '
+        finalName += safeLookup(attrs['PRETYPABRV'], streetTypes) + ' '
     if(attrs['NAME']):
         finalName += attrs['NAME'] + ' '
     if(attrs['SUFTYPABRV']):
-        finalName += lookups.streetTypes[attrs['SUFTYPABRV']] + ' '
+        finalName += streetTypes[attrs['SUFTYPABRV']] + ' '
     return finalName.rstrip()
 
 def safeLookup(key, lookup):
@@ -81,16 +92,6 @@ def safeLookup(key, lookup):
     except KeyError:
         print 'key not found: ' + key
         return '';
-
-def translateDirection(abbrev):
-    if abbrev == 'E':
-        return 'East'
-    elif abbrev == 'S':
-        return 'South'
-    elif abbrev == 'W':
-        return 'West'
-    elif abbrev == 'N':
-        return 'North'
 
 def mtfccToHighway(mtfcc):
     if mtfcc == 'S1100':
@@ -114,6 +115,8 @@ def mtfccToHighway(mtfcc):
     elif mtfcc == 'S1730':
         return 'service'
     elif mtfcc == 'S1740':
+        return 'service'
+    elif mtfcc == 'S1750':
         return 'service'
     elif mtfcc == 'S1780':
         return 'service'
