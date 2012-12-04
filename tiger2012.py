@@ -5,7 +5,7 @@ NOTE! To use this translation, you need to download the "featnames" file that cc
 that file to the shapefile in QGIS or ArcMap or whatever, based on LINEARID. This will allow for the street name abbreviations to 
 be processed correctly.
 
-NOTE 2! To expand abbreviations, this uses the CSV file tiger2011_abrev.csv which is also in this repo. However due to the limited 
+NOTE 2! To expand abbreviations, this uses the CSV file tiger2012_abrv.csv which is also in this repo. However due to the limited 
 amount of information that gets passed in to the translation, I can't really know where to look for this file. So you must copy the 
 csv file to your current working directory before executing ogr2osm
 
@@ -15,16 +15,20 @@ import os
 import csv
 
 streetTypes = {}
-directions = {}
+directionCodes = {}
+nameQualifiers = {}
     
 try:
-    directions.update({'N':'North', 'E':'East', 'S':'South', 'W':'West', 'NE':'Northeast', 'NW':'Northwest', 'SE':'Southeast', 'SW':'Southwest'})
-    f = open('tiger2011_abbrev.csv', 'rb')
-    print "opened file"
+    # Codes are from the TIGER technical documentation
+    directionCodes.update({'11':'North', '12':'South', '13':'East', '14':'West', '15':'Northeast', '16':'Northwest', '17':'Southeast', '18':'Southwest', 
+                           '19':'Norte', '20':'Sur', '21':'Este', '22':'Oeste', '23':'Noreste', '24':'Noroeste', '25':'Sudeste', '26':'Sudoeste'})
+    nameQualifiers.update({'11':'Access', '12':'Alternate', '13':'Business', '14':'Bypass', '15':'Connector', '16':'Extended', '17':'Extension', '18':'Historic', 
+                           '19':'Loop', '20':'Old', '21':'Private', '22':'Public', '23':'Scenic', '24':'Spur', '25':'Ramp', '26':'Underpass', '27':'Overpass'})
+    print "reading abbreviation CSV file"
+    f = open('tiger2012_abbrv.csv', 'rb')
     abbrevReader = csv.reader(f, delimiter=',')
-    print "about to iterate CSV file"
     for row in abbrevReader:
-        streetTypes[row[2]] = row[1]
+        streetTypes[row[0]] = row[1]
         
     print "Read tiger abbreviations: " + str(len(streetTypes))
 except:
@@ -76,22 +80,21 @@ def filterTags(attrs):
 
 def composeName(attrs):
     finalName = ''
-    if(attrs['PREDIRABRV']):
-        finalName += safeLookup(attrs['PREDIRABRV'], directions) + ' '
-    if(attrs['PRETYPABRV']):
-        finalName += safeLookup(attrs['PRETYPABRV'], streetTypes) + ' '
+    if(attrs['PREQUAL']):
+        finalName += nameQualifiers[attrs['PREQUAL']] + ' '
+    if(attrs['PREDIR']):
+        finalName += directionCodes[attrs['PREDIR']] + ' '
+    if(attrs['PRETYP']):
+        finalName += streetTypes[attrs['PRETYP']] + ' '
     if(attrs['NAME']):
         finalName += attrs['NAME'] + ' '
-    if(attrs['SUFTYPABRV']):
-        finalName += streetTypes[attrs['SUFTYPABRV']] + ' '
+    if(attrs['SUFTYP']):
+        finalName += streetTypes[attrs['SUFTYP']] + ' '
+    if(attrs['SUFDIR']):
+        finalName += directionCodes[attrs['SUFDIR']] + ' '
+    if(attrs['SUFQUAL']):
+        finalName += nameQualifiers[attrs['SUFQUAL']] + ' '
     return finalName.rstrip()
-
-def safeLookup(key, lookup):
-    try:
-        return lookup[key]
-    except KeyError:
-        print 'key not found: ' + key
-        return '';
 
 def mtfccToHighway(mtfcc):
     if mtfcc == 'S1100':
