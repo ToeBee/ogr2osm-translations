@@ -1,11 +1,17 @@
 '''
 Translation file to convert Riley county address points to OSM format.
 
-The shapefile contains 22,574 points that are centered over buildings. The format of the 
-address data is not entirely homogeneous. Addresses in most of the county is split into 
-fields indicating prefix, name and road type which can be looked up to compose the full and
-unabbreviated name. Addresses within the city of Manhattan are unfortunately not split out 
-so the address must be parsed out of the FULL_ADDR field instead.
+The source for this conversion consists of two files merged together. Most of the information 
+comes from a file that contains 22,574 points with street address and zip code information. 
+The points are centered over buildings. One piece of information that this file does not have 
+is a city name associated with the address. The zip code information also seems spotty So to 
+get these, the points file was joined with a parcel shapefile which has a parcel address 
+field that includes city name and zip code.
+
+The format of the address data is not entirely homogeneous. Addresses in most of the county 
+is split into fields indicating prefix, name and road type which can be looked up to compose 
+the full and unabbreviated name. Addresses within the city of Manhattan are unfortunately not 
+split out so the address must be parsed out of the FULL_ADDR field instead. 
 
 Other peculiarities:
 - There is inconsistent data. Most street names are all caps and abbreviated. But there are 
@@ -18,6 +24,9 @@ Other peculiarities:
   are also flagged with a FIXME for further review.
 - There are a few just plain odd values like "Null Number" and entries without housenumbers and such.
   These are flagged for review with a FIXME tag.
+- Since the city of Manhattan spans the Riley/Pottawatomie county line, some addresses are in Pott 
+  county. But Riley doesn't have parcel data from Pott county so the city tag is missing. But they 
+  are all Manhattan so it isn't hard to fix.
   
 In addition to the FIXME tags, more processing will be needed to conflate the data with what is
 already mapped in the area.
@@ -59,13 +68,18 @@ def filterTags(attrs):
         tags.update({'addr:postcode':attrs['ZIP_CODE']})
     if(attrs['MANHATTAN']): 
         tags.update({'addr:postcode':attrs['MANHATTAN']})
+        
+    #Parse the city name and zip code out of the parcel address
+    cityZipTags = parseCityZip(attrs['Property_A'])
+    if(cityZipTags):
+        tags.update(cityZipTags)
 
     #All parsing has failed. Slap the unprocessed FULL_ADDR value into a tag and flag with FIXME
-    if(not tags):
-        tags.update({'FIXME':'Unknown problem. No tags'})
+    if(not tags or not tags.get('addr:housenumber')):
+        tags.update({'FIXME':'Unknown problem. No housenumber tag'})
         tags.update({'addr:full':attrs['FULL_ADDR']})
+        tags.update({'addr:parcel':attrs['Property_A']})
     
-    print 'returning tags'
     return tags
 
 def composeStreetName(attrs):
@@ -78,6 +92,18 @@ def composeStreetName(attrs):
     if(attrs['TYPE']):
         name += streetType[attrs['TYPE']]
     return name.rstrip()
+
+'''parses the city and zip out of addresses that are formatted like:
+   1234 REDBUD DR, Manhattan, KS 66503
+'''
+def parseCityZip(parcelAddress):
+    print 'parsing parcel address: ' + parcelAddress
+    tags = {}
+    match = re.match('.*, (.*), KS (.*)', parcelAddress)
+    if(match):
+        tags.update({'addr:city':match.group(1).strip()})
+        tags.update({'addr:postcode':match.group(2).strip()})
+    return tags
 
 def parseAddress(fullAddress):
     tags = {}
